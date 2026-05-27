@@ -28,7 +28,7 @@ fun ProjectHeader(
         modifier = modifier,
     ) {
         Image(
-            painter = painterResource(if (aliucord) R.drawable.ic_aliucord_logo else R.drawable.ic_rounded_surge),
+            painter = painterResource(if (aliucord) R.drawable.ic_aliucord_logo else R.drawable.ic_rounded_surgecord),
             contentDescription = null,
             modifier = Modifier
                 .padding(bottom = 6.dp)

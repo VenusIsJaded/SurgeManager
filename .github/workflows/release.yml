@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      HAS_SIGNING: ${{ secrets.SIGNING_KEYSTORE != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,6 +45,7 @@ jobs:
           RELEASE: true
 
       - name: Decode keystore
+        if: env.HAS_SIGNING == 'true'
         env:
           KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE }}
         run: |
@@ -50,6 +53,7 @@ jobs:
           keytool -list -keystore signing.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -alias "${{ secrets.KEY_ALIAS }}" || { echo "::error::Keystore corrupted"; exit 1; }
 
       - name: Sign APK
+        if: env.HAS_SIGNING == 'true'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -69,6 +73,15 @@ jobs:
             --ks-key-alias "$KEY_ALIAS" \
             --in "$UNSIGNED" \
             --out app-release.apk
+
+      - name: Use unsigned APK
+        if: env.HAS_SIGNING != 'true'
+        run: |
+          APK=$(find . -path "*/build/outputs/apk/release/*-unsigned.apk" -print -quit)
+          [ -z "$APK" ] && APK=$(find . -path "*/build/outputs/apk/release/*.apk" -print -quit)
+          [ -z "$APK" ] && { echo "::error::No APK found"; exit 1; }
+          cp "$APK" app-release.apk
+          echo "::warning::Signing secrets are not configured; uploading unsigned APK."
 
       - name: Compute release flags
         id: flags
