@@ -1,0 +1,23 @@
+.idea
+.gradle
+.kotlin
+
+/**/build/
+/local.properties
+/captures
+
+.DS_Store
+*.log
+
+/app/release
+# Local signing material / generated release files
+*.jks
+*.keystore
+keystore*.txt
+keystore*.b64
+signing.keystore
+release-key.jks
+# Accidentally-created nested repositories / submodules
+/SurgeManager.git/
+/Surge.git/
+/SurgeXposed.git/

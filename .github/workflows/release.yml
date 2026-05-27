@@ -1,0 +1,108 @@
+name: Build Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create release for'
+        required: true
+        type: string
+      prerelease:
+        description: 'Publish as a pre-release'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+        env:
+          RELEASE: true
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE }}
+        run: |
+          printf '%s' "$KEYSTORE_B64" | base64 -d > signing.keystore
+          keytool -list -keystore signing.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -alias "${{ secrets.KEY_ALIAS }}" || { echo "::error::Keystore corrupted"; exit 1; }
+
+      - name: Sign APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          UNSIGNED=$(find . -path "*/build/outputs/apk/release/*-unsigned.apk" -print -quit)
+          [ -z "$UNSIGNED" ] && UNSIGNED=$(find . -path "*/build/outputs/apk/release/*.apk" -print -quit)
+          [ -z "$UNSIGNED" ] && { echo "::error::No APK found"; exit 1; }
+
+          APKSIGNER=$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort -V | tail -n1)
+          [ -z "$APKSIGNER" ] && { echo "::error::apksigner not found"; exit 1; }
+
+          "$APKSIGNER" sign \
+            --ks signing.keystore \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --ks-key-alias "$KEY_ALIAS" \
+            --in "$UNSIGNED" \
+            --out app-release.apk
+
+      - name: Compute release flags
+        id: flags
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.prerelease }}" = "true" ]; then
+              PRERELEASE=true
+            else
+              PRERELEASE=false
+            fi
+          else
+            case "$TAG" in
+              *-*) PRERELEASE=true ;;
+              *) PRERELEASE=false ;;
+            esac
+          fi
+
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+          if [ "$PRERELEASE" = "true" ]; then
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: app-release.apk
+          generate_release_notes: false
+          body: ""
+          prerelease: ${{ steps.flags.outputs.prerelease }}
+          make_latest: ${{ steps.flags.outputs.make_latest }}
+          token: ${{ secrets.GITHUB_TOKEN }}
