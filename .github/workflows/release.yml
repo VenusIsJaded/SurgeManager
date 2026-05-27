@@ -52,8 +52,13 @@ jobs:
           printf '%s' "$KEYSTORE_B64" | base64 -d > signing.keystore
           keytool -list -keystore signing.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -alias "${{ secrets.KEY_ALIAS }}" || { echo "::error::Keystore corrupted"; exit 1; }
 
+      - name: Generate fallback keystore
+        if: env.HAS_SIGNING != 'true'
+        run: |
+          keytool -genkeypair             -keystore signing.keystore             -storepass password             -keypass password             -alias alias             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Surge"
+          echo "::warning::Signing secrets are not configured; using a generated fallback keystore. Add signing secrets before publishing production releases."
+
       - name: Sign APK
-        if: env.HAS_SIGNING == 'true'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -66,22 +71,17 @@ jobs:
           APKSIGNER=$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort -V | tail -n1)
           [ -z "$APKSIGNER" ] && { echo "::error::apksigner not found"; exit 1; }
 
-          "$APKSIGNER" sign \
-            --ks signing.keystore \
-            --ks-pass env:KEYSTORE_PASSWORD \
-            --key-pass env:KEY_PASSWORD \
-            --ks-key-alias "$KEY_ALIAS" \
-            --in "$UNSIGNED" \
-            --out app-release.apk
+          if [ "$HAS_SIGNING" = "true" ]; then
+            KS_PASS="$KEYSTORE_PASSWORD"
+            KEY_PASS="$KEY_PASSWORD"
+            KS_ALIAS="$KEY_ALIAS"
+          else
+            KS_PASS="password"
+            KEY_PASS="password"
+            KS_ALIAS="alias"
+          fi
 
-      - name: Use unsigned APK
-        if: env.HAS_SIGNING != 'true'
-        run: |
-          APK=$(find . -path "*/build/outputs/apk/release/*-unsigned.apk" -print -quit)
-          [ -z "$APK" ] && APK=$(find . -path "*/build/outputs/apk/release/*.apk" -print -quit)
-          [ -z "$APK" ] && { echo "::error::No APK found"; exit 1; }
-          cp "$APK" app-release.apk
-          echo "::warning::Signing secrets are not configured; uploading unsigned APK."
+          "$APKSIGNER" sign             --ks signing.keystore             --ks-pass pass:"$KS_PASS"             --key-pass pass:"$KEY_PASS"             --ks-key-alias "$KS_ALIAS"             --in "$UNSIGNED"             --out app-release.apk
 
       - name: Compute release flags
         id: flags
