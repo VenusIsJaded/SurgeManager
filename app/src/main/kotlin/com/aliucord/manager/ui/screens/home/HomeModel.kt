@@ -218,8 +218,12 @@ class HomeModel(
                 )
             },
             screenModelScope.launch(Dispatchers.IO) {
-                surgeGitHub.getLatestXposedRelease().fold(
-                    success = { latestSurgeXposedVersion = SemVer.parse(it.name) },
+                surgeGitHub.getXposedReleases().fold(
+                    success = { releases ->
+                        latestSurgeXposedVersion = releases
+                            .firstOrNull { release -> release.assets.any { it.name == "app-release.apk" } }
+                            ?.let { release -> SemVer.parse(release.name.ifBlank { release.tagName }) }
+                    },
                     fail = { Log.w(BuildConfig.TAG, "Failed to fetch latest SurgeXposed version", it) },
                 )
             },

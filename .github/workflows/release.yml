@@ -10,11 +10,6 @@ on:
         description: 'Tag to create release for'
         required: true
         type: string
-      prerelease:
-        description: 'Publish as a pre-release'
-        required: true
-        default: false
-        type: boolean
 
 jobs:
   build:
@@ -83,32 +78,6 @@ jobs:
 
           "$APKSIGNER" sign             --ks signing.keystore             --ks-pass pass:"$KS_PASS"             --key-pass pass:"$KEY_PASS"             --ks-key-alias "$KS_ALIAS"             --in "$UNSIGNED"             --out app-release.apk
 
-      - name: Compute release flags
-        id: flags
-        run: |
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ "${{ inputs.prerelease }}" = "true" ]; then
-              PRERELEASE=true
-            else
-              PRERELEASE=false
-            fi
-          else
-            case "$TAG" in
-              *-*) PRERELEASE=true ;;
-              *) PRERELEASE=false ;;
-            esac
-          fi
-
-          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
-
-          if [ "$PRERELEASE" = "true" ]; then
-            echo "make_latest=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "make_latest=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -116,6 +85,6 @@ jobs:
           files: app-release.apk
           generate_release_notes: false
           body: ""
-          prerelease: ${{ steps.flags.outputs.prerelease }}
-          make_latest: ${{ steps.flags.outputs.make_latest }}
+          prerelease: false
+          make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -17,9 +17,16 @@ class SurgeGitHubService(
         }
     }
 
-    suspend fun getLatestXposedRelease(): ApiResponse<GithubRelease> {
+    /**
+     * Returns all SurgeXposed releases, including pre-releases.
+     *
+     * GitHub's /releases/latest endpoint ignores pre-releases, which makes a fresh
+     * repo with only a pre-release look like it has no releases. The manager needs
+     * to be able to bootstrap from either release type.
+     */
+    suspend fun getXposedReleases(): ApiResponse<List<GithubRelease>> {
         return http.request {
-            url("https://api.github.com/repos/$ORG/$XPOSED_REPO/releases/latest")
+            url("https://api.github.com/repos/$ORG/$XPOSED_REPO/releases")
             header(HttpHeaders.CacheControl, "public, max-age=60, s-maxage=60")
         }
     }

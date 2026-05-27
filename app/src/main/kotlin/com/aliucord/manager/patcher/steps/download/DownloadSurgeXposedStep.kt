@@ -21,10 +21,14 @@ class DownloadSurgeXposedStep : DownloadStep() {
         private set
 
     override suspend fun execute(container: StepRunner) {
-        val latestRelease = surgeGitHubService.getLatestXposedRelease().getOrThrow()
-        container.log("Latest SurgeXposed release is ${latestRelease.name}")
+        val latestRelease = surgeGitHubService.getXposedReleases()
+            .getOrThrow()
+            .firstOrNull { release -> release.assets.any { it.name == "app-release.apk" } }
+            ?: throw Error("No SurgeXposed release with app-release.apk was found")
+        val releaseVersion = latestRelease.name.ifBlank { latestRelease.tagName }
+        container.log("Latest SurgeXposed release is $releaseVersion")
 
-        targetVersion = SemVer.parse(latestRelease.name)
+        targetVersion = SemVer.parse(releaseVersion)
         targetUrl = latestRelease.assets.first { it.name == "app-release.apk" }.browserDownloadUrl
         super.execute(container)
     }
