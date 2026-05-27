@@ -44,9 +44,7 @@ android {
         buildConfigField("String", "APPLICATION_NAME", "\"Surge Manager\"")
         buildConfigField("String", "TAG", "\"SurgeManager\"")
 
-        buildConfigField("String", "CODEBERG_ORG", "\"VenusIsJaded\"")
         buildConfigField("String", "GITHUB_ORG", "\"VenusIsJaded\"")
-        buildConfigField("String", "SUPPORT_SERVER", "\"6cN7wKa8gp\"")
 
         buildConfigField("String", "BACKEND_URL", "\"https://surgecord.dev/\"")
 

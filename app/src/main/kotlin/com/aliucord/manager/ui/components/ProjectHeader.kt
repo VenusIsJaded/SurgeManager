@@ -12,7 +12,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.surgecord.manager.BuildConfig
 import dev.surgecord.manager.R
 
 @Composable
@@ -51,33 +50,13 @@ fun ProjectHeader(
         Row(
             horizontalArrangement = Arrangement.Center,
         ) {
-            TextButton(onClick = { uriHandler.openUri("https://codeberg.org/${if (aliucord) "Aliucord" else BuildConfig.CODEBERG_ORG}") }) {
-                Icon(
-                    painter = painterResource(R.drawable.codeberg_logo_icon_white),
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = ButtonDefaults.IconSpacing),
-                )
-                Text(text = stringResource(R.string.codeberg))
-            }
-
-            TextButton(onClick = { uriHandler.openUri("https://github.com/${if (aliucord) "Aliucord" else BuildConfig.GITHUB_ORG}") }) {
+            TextButton(onClick = { uriHandler.openUri("https://github.com/VenusIsJaded/SurgeManager") }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_account_github_white_24dp),
                     contentDescription = null,
                     modifier = Modifier.padding(end = ButtonDefaults.IconSpacing),
                 )
                 Text(text = stringResource(R.string.github))
-            }
-
-            TextButton(onClick = { uriHandler.openUri("https://discord.gg/${if (aliucord) "EsNDvBaHVU" else BuildConfig.SUPPORT_SERVER}") }) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_discord),
-                    contentDescription = stringResource(R.string.support_server),
-                    modifier = Modifier
-                        .padding(end = ButtonDefaults.IconSpacing)
-                        .size(22.dp),
-                )
-                Text(text = stringResource(R.string.discord))
             }
         }
     }

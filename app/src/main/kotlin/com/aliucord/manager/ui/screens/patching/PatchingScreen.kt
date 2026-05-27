@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +42,6 @@ import com.aliucord.manager.ui.util.spacedByLastAtBottom
 import com.aliucord.manager.ui.util.thenIf
 import com.aliucord.manager.util.back
 import com.aliucord.manager.util.isIgnoringBatteryOptimizations
-import dev.surgecord.manager.BuildConfig
 import dev.surgecord.manager.R
 import kotlinx.coroutines.flow.filter
 import kotlinx.parcelize.IgnoredOnParcel
@@ -223,15 +221,12 @@ class PatchingScreen(private val data: PatchOptions) : Screen, Parcelable {
 
                     item(key = "FAILED_BANNER") {
                         BannerSection(visible = state is PatchingScreenState.Failed) {
-                            val handler = LocalUriHandler.current
-
                             TextBanner(
                                 text = stringResource(R.string.installer_banner_failure),
                                 icon = painterResource(R.drawable.ic_warning),
                                 iconColor = MaterialTheme.colorScheme.error,
                                 outlineColor = null,
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
-                                onClick = { handler.openUri("https://discord.gg/${BuildConfig.SUPPORT_SERVER}") },
                                 modifier = Modifier
                                     .padding(bottom = VERTICAL_PADDING)
                                     .fillMaxWidth(),
