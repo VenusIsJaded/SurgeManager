@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="SurgeCord logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="108" x2="108" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#090B10"/>
+      <stop offset="0.55" stop-color="#151A2A"/>
+      <stop offset="1" stop-color="#2E1F5E"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="27" y1="96" x2="82" y2="13" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#39D8FF"/>
+      <stop offset="1" stop-color="#8A6CFF"/>
+    </linearGradient>
+  </defs>
+  <circle cx="54" cy="54" r="50" fill="url(#bg)"/>
+  <circle cx="54" cy="54" r="44" fill="#242A3A" opacity="0.88"/>
+  <path d="M72 15L31 58h22L38 94l43-51H60z" fill="#7A5CFF" opacity="0.35"/>
+  <path d="M68 13L27 58h24L37 96l45-52H58z" fill="url(#bolt)"/>
+  <path d="M59 26L39 51h15l-8 25l24-31H56z" fill="#F7FBFF"/>
+</svg>

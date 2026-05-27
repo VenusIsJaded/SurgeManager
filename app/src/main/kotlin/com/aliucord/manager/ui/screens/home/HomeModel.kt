@@ -231,8 +231,10 @@ class HomeModel(
             mainThread { application.showToast(R.string.home_network_fail) }
         }
         if (latestSurgeXposedVersion == null) {
+            // Fresh forks may not have a SurgeXposed release yet. Do not show a
+            // scary home-screen failure for this; installs/updates will surface a
+            // clear download error only when that component is actually required.
             Log.w(BuildConfig.TAG, "Latest SurgeXposed version is null after fetching remote data.")
-            mainThread { application.showToast(R.string.home_network_fail) }
         }
     }
 
@@ -309,8 +311,10 @@ class HomeModel(
         // Compare installed Discord version with the determined expected version
         val isDiscordUpToDate = installedDiscordVersionCode == expectedDiscordVersionCode
 
-        // Compare SurgeXposed version
-        val isSurgeXposedUpToDate = installMetadata.surgeXposedVersion == latestSurgeXposedVersion
+        // Compare SurgeXposed version only when the remote release exists. A brand-new
+        // repo with no releases should not make the whole home screen fail.
+        val isSurgeXposedUpToDate = latestSurgeXposedVersion == null ||
+            installMetadata.surgeXposedVersion == latestSurgeXposedVersion
 
         return isDiscordUpToDate && isSurgeXposedUpToDate
     }
