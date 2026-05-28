@@ -21,15 +21,22 @@ class DownloadSurgeXposedStep : DownloadStep() {
         private set
 
     override suspend fun execute(container: StepRunner) {
-        val latestRelease = surgeGitHubService.getXposedReleases()
-            .getOrThrow()
-            .firstOrNull { release -> release.assets.any { it.name == "app-release.apk" } }
-            ?: throw Error("No SurgeXposed release with app-release.apk was found")
-        val releaseVersion = latestRelease.name.ifBlank { latestRelease.tagName }
-        container.log("Latest SurgeXposed release is $releaseVersion")
+        val releases = surgeGitHubService.getXposedReleases().getOrThrow()
+        val latest = releases
+            .mapNotNull { release ->
+                val version = SemVer.parseOrNull(release.name.ifBlank { release.tagName })
+                    ?: return@mapNotNull null
+                val asset = release.assets.firstOrNull { it.name == "app-release.apk" }
+                    ?: return@mapNotNull null
 
-        targetVersion = SemVer.parse(releaseVersion)
-        targetUrl = latestRelease.assets.first { it.name == "app-release.apk" }.browserDownloadUrl
+                Triple(version, release, asset)
+            }
+            .maxByOrNull { it.first }
+            ?: throw Error("No valid SurgeXposed release with app-release.apk was found")
+
+        targetVersion = latest.first
+        targetUrl = latest.third.browserDownloadUrl
+        container.log("Latest SurgeXposed release is ${latest.second.name.ifBlank { latest.second.tagName }}")
         super.execute(container)
     }
 }

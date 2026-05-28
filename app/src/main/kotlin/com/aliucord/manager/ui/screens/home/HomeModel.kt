@@ -122,7 +122,7 @@ class HomeModel(
             @OptIn(ExperimentalSerializationApi::class)
             metadataFile?.let { json.decodeFromStream<InstallMetadata>(it.inputStream()) }
         } catch (t: Throwable) {
-            Log.w(BuildConfig.TAG, "Failed to parse Aliucord install metadata from package $packageName", t)
+            Log.w(BuildConfig.TAG, "Failed to parse SurgeCord install metadata from package $packageName", t)
             null
         }
 
@@ -172,7 +172,7 @@ class HomeModel(
                 }
             }
         } catch (t: Throwable) {
-            Log.e(BuildConfig.TAG, "Failed to query Aliucord installations", t)
+            Log.e(BuildConfig.TAG, "Failed to query SurgeCord installations", t)
             mainThread { installsState = InstallsState.Error }
         }
     }
@@ -221,8 +221,14 @@ class HomeModel(
                 surgeGitHub.getXposedReleases().fold(
                     success = { releases ->
                         latestSurgeXposedVersion = releases
-                            .firstOrNull { release -> release.assets.any { it.name == "app-release.apk" } }
-                            ?.let { release -> SemVer.parse(release.name.ifBlank { release.tagName }) }
+                            .mapNotNull { release ->
+                                if (release.assets.none { it.name == "app-release.apk" }) {
+                                    return@mapNotNull null
+                                }
+
+                                SemVer.parseOrNull(release.name.ifBlank { release.tagName })
+                            }
+                            .maxOrNull()
                     },
                     fail = { Log.w(BuildConfig.TAG, "Failed to fetch latest SurgeXposed version", it) },
                 )
@@ -231,8 +237,10 @@ class HomeModel(
         ).joinAll()
 
         if (trackerIndexJson == null) {
+            // Do not show a home-screen error just because remote version metadata
+            // could not be refreshed. Installs and updates surface actionable errors
+            // at the point where network data is actually required.
             Log.w(BuildConfig.TAG, "RNATracker index is null after fetching remote data.")
-            mainThread { application.showToast(R.string.home_network_fail) }
         }
         if (latestSurgeXposedVersion == null) {
             // Fresh forks may not have a SurgeXposed release yet. Do not show a
@@ -243,7 +251,7 @@ class HomeModel(
     }
 
     /**
-     * Obtains all installed packages on the device that are an Aliucord installation.
+     * Obtains all installed packages on the device that are SurgeCord installations.
      */
     private fun fetchAliucordPackages(): List<PackageInfo> {
         return application.packageManager
@@ -280,7 +288,7 @@ class HomeModel(
             @OptIn(ExperimentalSerializationApi::class)
             json.decodeFromStream<InstallMetadata>(metadataFile.inputStream())
         } catch (t: Throwable) {
-            Log.w(BuildConfig.TAG, "Failed to parse Aliucord install metadata from package ${pkg.packageName}", t)
+            Log.w(BuildConfig.TAG, "Failed to parse SurgeCord install metadata from package ${pkg.packageName}", t)
             return false
         }
 
