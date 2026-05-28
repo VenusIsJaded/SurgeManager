@@ -28,17 +28,12 @@ class SurgePatchRunner(options: PatchOptions) : StepRunner() {
             PatchSurgeManifestStep(options),
             SaveMetadataStep(options),
 
-            // LSPatch MUST run before alignment and signing.
-            // LSPatch rewrites the APK (adds dex, native libs, modules), which
-            // invalidates any prior alignment. If alignment runs before LSPatch,
-            // the Hermes bytecode (index.android.bundle) ends up misaligned after
-            // the rewrite, causing crashes on devices with strict memory-mapping
-            // (e.g. Samsung kernels with "Buffer misaligned" errors, and potentially
-            // classloading issues from corrupted APK structure on other devices).
-            // Running LSPatch first ensures alignment can fix the output properly.
-            InjectSurgeXposedStep(),
+            // Keep the official Surge Manager pipeline order. Local APK support should
+            // only change where the APKs come from; LSPatch remains the final
+            // APK-producing step to avoid launch crashes.
             AlignmentStep(),
             SigningStep(),
+            InjectSurgeXposedStep(),
 
             InstallStep(options),
             CleanupStep(),
@@ -55,16 +50,18 @@ class SurgePatchRunner(options: PatchOptions) : StepRunner() {
             DownloadDiscordRNALibStep(),
             DownloadSurgeXposedStep(),
 
+            // Auto-downloads intentionally use the same CopyDependenciesStep() call
+            // and install order as official Surge Manager. Local APK support is isolated
+            // to the branch above so the known-good auto path is not changed.
             CopyDependenciesStep(),
 
             PatchIconsStep(options),
             PatchSurgeManifestStep(options),
             SaveMetadataStep(options),
 
-            // LSPatch → Alignment → Signing (see comment above)
-            InjectSurgeXposedStep(),
             AlignmentStep(),
             SigningStep(),
+            InjectSurgeXposedStep(),
 
             InstallStep(options),
             CleanupStep(),
