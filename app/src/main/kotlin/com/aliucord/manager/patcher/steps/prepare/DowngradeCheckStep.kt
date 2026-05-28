@@ -3,6 +3,7 @@ package com.aliucord.manager.patcher.steps.prepare
 import android.content.Context
 import android.content.pm.PackageManager.NameNotFoundException
 import com.aliucord.manager.manager.InstallerManager
+import com.aliucord.manager.installers.InstallerResult
 import com.aliucord.manager.patcher.StepRunner
 import com.aliucord.manager.patcher.steps.StepGroup
 import com.aliucord.manager.patcher.steps.base.Step

@@ -2,7 +2,7 @@ package com.aliucord.manager.patcher.steps.install
 
 import android.content.Context
 import java.io.File
-import android.content.pm.PackageManager
+import android.content.pm.PackageInstaller
 import androidx.lifecycle.*
 import com.aliucord.manager.installers.InstallerResult
 import com.aliucord.manager.installers.pm.PMInstallerError
@@ -16,6 +16,7 @@ import com.aliucord.manager.ui.components.dialogs.PlayProtectDialog
 import com.aliucord.manager.ui.screens.patchopts.PatchOptions
 import com.aliucord.manager.ui.util.InstallNotifications
 import com.aliucord.manager.util.isPackageInstalled
+import com.aliucord.manager.util.*
 import com.aliucord.manager.util.isPlayProtectEnabled
 import dev.surgecord.manager.R
 import org.koin.core.component.KoinComponent
@@ -177,11 +178,11 @@ open class InstallStep(private val options: PatchOptions) : Step(), KoinComponen
          * - STATUS_FAILURE (1): Generic failure that sometimes resolves after uninstall
          * - STATUS_FAILURE_INCOMPATIBLE (6): Device/version incompatibility
          */
-        private val RETRYABLE_STATUS_CODES = setOf(
-            PackageManager.STATUS_FAILURE_CONFLICT,
-            PackageManager.STATUS_FAILURE_INVALID,
-            PackageManager.STATUS_FAILURE,
-            PackageManager.STATUS_FAILURE_INCOMPATIBLE,
+        private val RETRYABLE_STATUS_CODES: Set<Int> = setOf(
+            PackageInstaller.STATUS_FAILURE_CONFLICT,
+            PackageInstaller.STATUS_FAILURE_INVALID,
+            PackageInstaller.STATUS_FAILURE,
+            PackageInstaller.STATUS_FAILURE_INCOMPATIBLE,
         )
     }
 }
