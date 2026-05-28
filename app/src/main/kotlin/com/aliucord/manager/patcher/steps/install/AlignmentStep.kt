@@ -21,7 +21,6 @@ class AlignmentStep : Step(), KoinComponent {
     override val localizedName = R.string.patch_step_alignment
 
     override suspend fun execute(container: StepRunner) {
-        val currentDeviceArch = Build.SUPPORTED_ABIS.first()
         val apks = container.getStep<CopyDependenciesStep>().patchedApks
 
         for (apk in apks) {
@@ -60,11 +59,6 @@ class AlignmentStep : Step(), KoinComponent {
 
                 // Extract to disk temporarily
                 for ((idx, path) in libPaths.withIndex()) {
-                    // Ignore lib architectures that don't match this device
-                    if (!path.startsWith("lib/$currentDeviceArch")) {
-                        container.log("Skipping native lib $path due to incompatible architecture")
-                        continue
-                    }
 
                     // Index is just used as a placeholder id to cache on disk
                     val bytes = zip.openEntry(path)!!.read()
@@ -106,9 +100,6 @@ class AlignmentStep : Step(), KoinComponent {
 
                 // Write back native libraries aligned to 16KiB page boundary
                 for ((idx, path) in nativeLibPaths.withIndex()) {
-                    // Ignore lib architectures that don't match this device
-                    if (!path.startsWith("lib/$currentDeviceArch"))
-                        continue
 
                     val file = paths.patchingWorkingDir().resolve("$idx.so")
                     val bytes = file.readBytes()
