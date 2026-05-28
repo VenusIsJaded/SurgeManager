@@ -5,51 +5,32 @@
 <h1 align="center">Surge Manager</h1>
 
 <p align="center">
-  Android installer and patcher for SurgeCord.
+  The Android installer and patcher for SurgeCord.
 </p>
 
 <p align="center">
   <a href="https://github.com/VenusIsJaded/SurgeManager/releases/latest">Download</a>
   ·
-  <a href="https://github.com/VenusIsJaded/SurgeManager/issues">Issues</a>
+  <a href="https://github.com/VenusIsJaded/SurgeManager/issues">Report an Issue</a>
 </p>
 
-## What it does
+## About
 
-Surge Manager builds and installs a SurgeCord-patched Discord client on Android.
+Surge Manager installs SurgeCord on Android by patching Discord and embedding the components SurgeCord needs to run.
 
-It handles:
+It supports both automatic Discord downloads and local APK/APKM files, making it useful for testing multiple Discord versions without manually rebuilding everything yourself.
 
-- downloading supported Discord RNA APKs
-- selecting a local APK/APKM file
-- patching app name, package name, icons, and manifest values
-- downloading and embedding SurgeXposed
-- signing patched APKs
-- installing patched APKs through Android's PackageInstaller
-- keeping install logs for troubleshooting
+## Features
 
-## Related repositories
+- Automatic Discord patching flow
+- Local APK/APKM support
+- Custom app name, package name, and icon options
+- SurgeXposed injection
+- Install logs for troubleshooting
 
-- [`Surge`](https://github.com/VenusIsJaded/Surge) — SurgeCord JavaScript bundle
-- [`SurgeXposed`](https://github.com/VenusIsJaded/SurgeXposed) — LSPatch/Xposed module
-- [`ControlRepo`](https://github.com/VenusIsJaded/ControlRepo) — version metadata
+## Status
 
-## Release signing
-
-The release workflow supports these repository secrets:
-
-- `SIGNING_KEYSTORE`
-- `KEYSTORE_PASSWORD`
-- `KEY_ALIAS`
-- `KEY_PASSWORD`
-
-If signing secrets are not configured, CI generates a temporary fallback keystore so test builds can still complete. Use persistent signing secrets for builds you plan to keep installed across updates.
-
-## Development
-
-```bash
-./gradlew assembleDebug
-```
+Surge Manager is experimental. Android version differences, Discord updates, and APK split changes can cause installs to fail until compatibility fixes are added.
 
 ## Disclaimer
 
