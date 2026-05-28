@@ -17,7 +17,6 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.aliucord.manager.network.models.BuildInfo
 import com.aliucord.manager.network.models.RNATrackerIndex
 import com.aliucord.manager.network.services.*
 import com.aliucord.manager.network.utils.SemVer
@@ -36,13 +35,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
-import org.json.JSONArray
-import org.json.JSONObject
 
 class HomeModel(
     private val application: Application,
-    private val github: AliucordGithubService,
-    private val maven: AliucordMavenService,
     private val surgeGitHub: SurgeGitHubService,
     private val rnaTracker: RNATrackerService,
     private val json: Json,
@@ -53,10 +48,8 @@ class HomeModel(
         private set
 
     private val refreshingLock = Mutex()
-    private var remoteDataJson: BuildInfo? = null
     private var trackerIndexJson: RNATrackerIndex? = null
     private var latestSurgeXposedVersion: SemVer? = null
-    private var latestAliuhookVersion: SemVer? = null
 
     init {
         refresh()
@@ -73,20 +66,18 @@ class HomeModel(
         }
 
         refreshingLock.withLock {
-            val packages = fetchAliucordPackages()
+            val packages = fetchSurgeCordPackages()
+            fetchInstallations(packages)
 
-            val jobs = listOf(
-                screenModelScope.launch(Dispatchers.IO) {
-                    fetchInstallations(packages)
-                },
-                screenModelScope.launch(Dispatchers.IO) {
-                    if (remoteDataJson == null || latestAliuhookVersion == null)
-                        fetchRemoteData()
-                }
-            )
+            // If nothing is installed yet, avoid noisy network calls and let the
+            // home screen become interactive immediately.
+            if (packages.isEmpty()) return@withLock
 
-            jobs.joinAll()
-            mainThread { refreshInstallationsUpToDate(packages) }
+            if (trackerIndexJson == null || latestSurgeXposedVersion == null) {
+                fetchRemoteData()
+            }
+
+            refreshInstallationsUpToDate(packages)
         }
     }
 
@@ -198,19 +189,6 @@ class HomeModel(
 
     private suspend fun fetchRemoteData() {
         listOf(
-            // // These aren't needed by SurgeCord
-            // screenModelScope.launch(Dispatchers.IO) {
-            //     github.getBuildData().fold(
-            //         success = { remoteDataJson = it },
-            //         fail = { Log.w(BuildConfig.TAG, "Failed to fetch remote build data", it) },
-            //     )
-            // },
-            // screenModelScope.launch(Dispatchers.IO) {
-            //     maven.getAliuhookVersion().fold(
-            //         success = { latestAliuhookVersion = it },
-            //         fail = { Log.w(BuildConfig.TAG, "Failed to fetch latest Aliuhook version", it) },
-            //     )
-            // },
             screenModelScope.launch(Dispatchers.IO) {
                 rnaTracker.getLatestDiscordVersions().fold(
                     success = { trackerIndexJson = it },
@@ -253,7 +231,7 @@ class HomeModel(
     /**
      * Obtains all installed packages on the device that are SurgeCord installations.
      */
-    private fun fetchAliucordPackages(): List<PackageInfo> {
+    private fun fetchSurgeCordPackages(): List<PackageInfo> {
         return application.packageManager
             .getInstalledPackages(PackageManager.GET_META_DATA)
             .filter {
