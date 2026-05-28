@@ -32,10 +32,9 @@ import java.util.zip.ZipOutputStream
  * the current local-file-header offset plus the entry name and extra-field length;
  * it cannot be calculated from the native library's file size.
  *
- * Runs AFTER LSPatch and BEFORE SigningStep.
- * LSPatch rewrites the APK, breaking alignment of existing entries.
- * This step re-aligns everything (including index.android.bundle for Hermes)
- * so the final signed APK has correct alignment for all devices.
+ * Runs before SigningStep. In the official/auto-download pipeline LSPatch runs after
+ * signing and produces the final signed APK; in local-APK recovery scenarios this
+ * step still prepares the input APKs so LSPatch starts from correctly aligned ZIPs.
  */
 class AlignmentStep : Step() {
     companion object {
@@ -73,10 +72,8 @@ class AlignmentStep : Step() {
                             for (entry in zipFile.entries().toList()) {
                                 val isNativeLib = isNativeLibrary(entry.name)
                                 val isResourcesArsc = isResourcesArsc(entry.name)
-                                val isJsBundle = isJsBundle(entry.name)
                                 val alignment = when {
                                     isNativeLib -> LIBRARY_ALIGNMENT
-                                    isJsBundle -> LIBRARY_ALIGNMENT
                                     isResourcesArsc -> RESOURCE_ALIGNMENT
                                     else -> null
                                 }
@@ -119,11 +116,7 @@ class AlignmentStep : Step() {
                                             entryName = entry.name,
                                             alignment = alignment,
                                         ).also {
-                                            val type = when {
-                                                isNativeLib -> "native library"
-                                                isJsBundle -> "JS bundle"
-                                                else -> "resources.arsc"
-                                            }
+                                            val type = if (isNativeLib) "native library" else "resources.arsc"
                                             if (it.isNotEmpty()) {
                                                 container.log(
                                                     "Aligned $type ${entry.name} with ${it.size} bytes of LFH extra padding"
@@ -170,16 +163,6 @@ class AlignmentStep : Step() {
     private fun isResourcesArsc(name: String): Boolean {
         val path = name.replace('\\', '/')
         return path == "resources.arsc"
-    }
-
-    /**
-     * Checks if the entry is a Hermes bytecode bundle that needs alignment.
-     * Hermes memory-maps the bytecode directly, so the buffer must be page-aligned.
-     * Samsung kernels enforce this strictly; AOSP is more lenient.
-     */
-    private fun isJsBundle(name: String): Boolean {
-        val path = name.replace('\\', '/')
-        return path == "index.android.bundle" || path == "assets/index.android.bundle"
     }
 
     /**
