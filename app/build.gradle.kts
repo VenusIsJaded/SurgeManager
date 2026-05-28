@@ -164,7 +164,10 @@ dependencies {
     implementation(libs.bundles.ktor)
     implementation(libs.bundles.voyager)
 
-    implementation(files("libs/lspatch.aar"))
+    // Use official LSPatch 0.6 (core 1.9.2) instead of modified 0.7 (core 1.10.1)
+    // The modified 0.7 version causes NoClassDefFoundError on devices with older LSPosed
+    // versions because it references classes that don't exist in LSPosed < 1.10.1
+    implementation(files("libs/lspatch.jar"))
 
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
