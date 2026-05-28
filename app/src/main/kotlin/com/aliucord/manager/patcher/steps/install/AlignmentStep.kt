@@ -17,7 +17,7 @@ import java.util.zip.ZipOutputStream
 /**
  * Normalizes the zip structure of every patched APK so that apksig can sign them,
  * stores and aligns resources.arsc as required for targetSdk 30+,
- * AND aligns native libraries to 16KB for Android 15+ (API 35+) support.
+ * AND aligns native libraries and Hermes bytecode to 16KB for Android 15+ support.
  *
  * LSPatch writes APKs using a ZipOutputStream variant that sets the Data Descriptor
  * flag (0x08) in Local File Headers but does NOT write actual Data Descriptor records,
@@ -28,20 +28,21 @@ import java.util.zip.ZipOutputStream
  * uncompressed and aligned on a 4-byte boundary.
  *
  * Android 15+ / 16KB-page devices also require every uncompressed native library's
- * *data offset* in the APK to be aligned to a 16KB boundary. Alignment depends on
- * the current local-file-header offset plus the entry name and extra-field length;
- * it cannot be calculated from the native library's file size.
+ * and Hermes bytecode bundle's *data offset* in the APK to be aligned to a 16KB
+ * boundary. Alignment depends on the current local-file-header offset plus the
+ * entry name and extra-field length; it cannot be calculated from the file size.
  *
- * Runs before SigningStep. In the official/auto-download pipeline LSPatch runs after
- * signing and produces the final signed APK; in local-APK recovery scenarios this
- * step still prepares the input APKs so LSPatch starts from correctly aligned ZIPs.
+ * Runs AFTER LSPatch and BEFORE SigningStep.
+ * LSPatch rewrites the APK, breaking alignment of existing entries.
+ * This step re-aligns everything (including index.android.bundle for Hermes)
+ * so the final signed APK has correct alignment for all devices.
  */
 class AlignmentStep : Step() {
     companion object {
         /** 4-byte alignment required for resources.arsc on targetSdk 30+ APKs. */
         private const val RESOURCE_ALIGNMENT = 4
 
-        /** 16KB alignment required for native libraries on Android 15+ (API 35+) */
+        /** 16KB alignment required for native libraries and JS bundle on Android 15+ */
         private const val LIBRARY_ALIGNMENT = 16 * 1024
 
         /** Local file header size without variable name/extra fields. */
@@ -72,8 +73,10 @@ class AlignmentStep : Step() {
                             for (entry in zipFile.entries().toList()) {
                                 val isNativeLib = isNativeLibrary(entry.name)
                                 val isResourcesArsc = isResourcesArsc(entry.name)
+                                val isJsBundle = isJsBundle(entry.name)
                                 val alignment = when {
                                     isNativeLib -> LIBRARY_ALIGNMENT
+                                    isJsBundle -> LIBRARY_ALIGNMENT
                                     isResourcesArsc -> RESOURCE_ALIGNMENT
                                     else -> null
                                 }
@@ -116,7 +119,11 @@ class AlignmentStep : Step() {
                                             entryName = entry.name,
                                             alignment = alignment,
                                         ).also {
-                                            val type = if (isNativeLib) "native library" else "resources.arsc"
+                                            val type = when {
+                                                isNativeLib -> "native library"
+                                                isJsBundle -> "JS bundle"
+                                                else -> "resources.arsc"
+                                            }
                                             if (it.isNotEmpty()) {
                                                 container.log(
                                                     "Aligned $type ${entry.name} with ${it.size} bytes of LFH extra padding"
@@ -163,6 +170,17 @@ class AlignmentStep : Step() {
     private fun isResourcesArsc(name: String): Boolean {
         val path = name.replace('\\', '/')
         return path == "resources.arsc"
+    }
+
+    /**
+     * Checks if the entry is a Hermes bytecode bundle that needs alignment.
+     * Hermes memory-maps the bytecode directly, so the buffer must be page-aligned.
+     * Samsung kernels enforce this strictly; other kernels may be more lenient.
+     * Also fixing this can resolve classloading issues on some devices.
+     */
+    private fun isJsBundle(name: String): Boolean {
+        val path = name.replace('\\', '/')
+        return path == "index.android.bundle" || path == "assets/index.android.bundle"
     }
 
     /**
