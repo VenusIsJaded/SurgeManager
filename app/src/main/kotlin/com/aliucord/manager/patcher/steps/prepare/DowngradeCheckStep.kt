@@ -2,7 +2,6 @@ package com.aliucord.manager.patcher.steps.prepare
 
 import android.content.Context
 import android.content.pm.PackageManager.NameNotFoundException
-import com.aliucord.manager.installers.InstallerResult
 import com.aliucord.manager.manager.InstallerManager
 import com.aliucord.manager.patcher.StepRunner
 import com.aliucord.manager.patcher.steps.StepGroup
@@ -15,10 +14,12 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
 /**
- * Uninstall a previous installation of the target package when necessary:
- *  1. The installed version is newer than what we're about to install (downgrade).
- *  2. The installed package is a split-APK set but we're installing a single monolithic APK
- *     — the PackageManager returns INSTALL_FAILED_MISSING_SPLIT in this case.
+ * Pre-install validation:
+ *  - Detects split-APK installs that can't be directly overwritten by a monolithic APK
+ *    and proactively uninstalls (the PackageManager provides no usable error for this case).
+ *  - Warns about downgrades but no longer forces an uninstall.
+ *    If the install fails due to a version conflict, [InstallStep] will handle
+ *    the uninstall-and-retry automatically.
  */
 class DowngradeCheckStep(private val options: PatchOptions) : Step(), KoinComponent {
     private val context: Context by inject()
@@ -43,6 +44,8 @@ class DowngradeCheckStep(private val options: PatchOptions) : Step(), KoinCompon
 
         // Detect split-APK install: if the package has split APKs, installing a monolithic APK
         // over it will always fail with INSTALL_FAILED_MISSING_SPLIT.
+        // This is the ONLY case where we must proactively uninstall, because the PackageManager
+        // error for this is unusable (it returns a generic STATUS_FAILURE with no useful message).
         val isSplitInstall = !packageInfo.applicationInfo?.splitSourceDirs.isNullOrEmpty()
         if (isSplitInstall) {
             container.log("Existing install is a split-APK set — must uninstall before installing a monolithic APK")
@@ -58,6 +61,9 @@ class DowngradeCheckStep(private val options: PatchOptions) : Step(), KoinCompon
             }
         }
 
+        // Version comparison: just log a warning if it looks like a downgrade.
+        // The actual install will attempt, and if it fails due to version conflict,
+        // InstallStep will automatically prompt for uninstall and retry.
         var targetVersion: Int? = null
 
         // First, try to get version from local APK step
@@ -92,18 +98,11 @@ class DowngradeCheckStep(private val options: PatchOptions) : Step(), KoinCompon
         }
 
         if (currentVersion > targetVersion) {
-            container.log("Current installed version is greater than target, forcing uninstallation")
-            mainThread { context.showToast(R.string.installer_uninstall_new) }
-
-            when (val result = installers.getActiveInstaller().waitUninstall(options.packageName)) {
-                is InstallerResult.Error -> throw Error("Failed to uninstall: ${result.getDebugReason()}")
-                is InstallerResult.Cancelled -> {
-                    mainThread { context.showToast(R.string.installer_uninstall_new) }
-                    throw Error("Newer versions must be uninstalled before installing an older version")
-                }
-
-                else -> {}
-            }
+            // Log the downgrade but don't block — let the install try.
+            // If it fails, InstallStep will handle the uninstall-and-retry.
+            container.log("Current installed version ($currentVersion) is greater than target ($targetVersion). Install may fail and require uninstall.")
+        } else {
+            container.log("Version check passed (installed: $currentVersion, target: $targetVersion)")
         }
     }
 }
