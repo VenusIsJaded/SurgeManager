@@ -56,7 +56,6 @@ object ManifestPatcher {
                         packageName?.let { put(PACKAGE, it) }
                         compileSdkVersion?.let { put(COMPILE_SDK_VERSION, it) }
                         compileSdkVersionCodename?.let { put(COMPILE_SDK_VERSION_CODENAME, it) }
-                        put("isolatedSplits", false)
                     }
                 ) {
                     private var shouldAddExternalStoragePerm = false

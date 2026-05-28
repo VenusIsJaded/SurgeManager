@@ -41,9 +41,6 @@ class AlignmentStep : Step() {
         /** 4-byte alignment required for resources.arsc on targetSdk 30+ APKs. */
         private const val RESOURCE_ALIGNMENT = 4
 
-        /** 4-byte alignment required for DEX files if useEmbeddedDex is true. */
-        private const val DEX_ALIGNMENT = 4
-
         /** 16KB alignment required for native libraries on Android 15+ (API 35+) */
         private const val LIBRARY_ALIGNMENT = 16 * 1024
 
@@ -75,11 +72,9 @@ class AlignmentStep : Step() {
                             for (entry in zipFile.entries().toList()) {
                                 val isNativeLib = isNativeLibrary(entry.name)
                                 val isResourcesArsc = isResourcesArsc(entry.name)
-                                val isDex = entry.name.endsWith(".dex")
                                 val alignment = when {
                                     isNativeLib -> LIBRARY_ALIGNMENT
                                     isResourcesArsc -> RESOURCE_ALIGNMENT
-                                    isDex -> DEX_ALIGNMENT
                                     else -> null
                                 }
                                 val method = if (alignment != null) ZipEntry.STORED else entry.method
@@ -121,7 +116,7 @@ class AlignmentStep : Step() {
                                             entryName = entry.name,
                                             alignment = alignment,
                                         ).also {
-                                            val type = if (isNativeLib) "native library" else if (isDex) "dex file" else "resources.arsc"
+                                            val type = if (isNativeLib) "native library" else "resources.arsc"
                                             if (it.isNotEmpty()) {
                                                 container.log(
                                                     "Aligned $type ${entry.name} with ${it.size} bytes of LFH extra padding"
