@@ -16,7 +16,7 @@ class PatchSurgeManifestStep(val options: PatchOptions) : PatchManifestStep(opti
         // For local APK/APKM files, preserve these attributes from the source APK
         // because newer APKMirror bundles vary here and forcing them has caused
         // ABI/install issues on Android 16 devices.
-        useEmbeddedDex = if (isLocalApk) null else false,
+        useEmbeddedDex = false,
         extractNativeLibs = if (isLocalApk) null else false,
         requestLegacyExternalStorage = false,
         appName = if (isBase) options.appName else null,
