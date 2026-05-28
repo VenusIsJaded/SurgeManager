@@ -1,7 +1,6 @@
 package com.aliucord.manager.patcher.steps.install
 
 import android.content.Context
-import java.io.File
 import android.content.pm.PackageInstaller
 import androidx.lifecycle.*
 import com.aliucord.manager.installers.InstallerResult
@@ -15,12 +14,11 @@ import com.aliucord.manager.patcher.steps.download.CopyDependenciesStep
 import com.aliucord.manager.ui.components.dialogs.PlayProtectDialog
 import com.aliucord.manager.ui.screens.patchopts.PatchOptions
 import com.aliucord.manager.ui.util.InstallNotifications
-import com.aliucord.manager.util.isPackageInstalled
 import com.aliucord.manager.util.*
-import com.aliucord.manager.util.isPlayProtectEnabled
 import dev.surgecord.manager.R
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.io.File
 
 /**
  * ID used for showing ready notifications if the activity is currently minimized when having reached this step.
@@ -90,13 +88,10 @@ open class InstallStep(private val options: PatchOptions) : Step(), KoinComponen
                     // Install failed with a retryable error and the target package is still installed.
                     // Prompt the user to uninstall, then retry the install automatically.
                     container.log("Install failed with retryable error: ${result.getDebugReason()}")
+                    container.log("Uninstalling existing installation to retry...")
+                    mainThread { context.showToast(R.string.installer_uninstall_new) }
 
-                    if (shouldAutoUninstall(container)) {
-                        container.log("Uninstalling existing installation to retry...")
-                        performUninstallAndRetry(container, apks)
-                    } else {
-                        throw Error("Failed to install APKs: ${result.getDebugReason()}")
-                    }
+                    performUninstallAndRetry(container, apks)
                 } else {
                     container.log("Installation failed")
                     throw Error("Failed to install APKs: ${result.getDebugReason()}")
@@ -120,17 +115,6 @@ open class InstallStep(private val options: PatchOptions) : Step(), KoinComponen
     private fun isRetryableError(result: InstallerResult.Error): Boolean {
         if (result !is PMInstallerError) return false
         return result.status in RETRYABLE_STATUS_CODES
-    }
-
-    /**
-     * Asks the user if they want to uninstall the existing installation.
-     * Returns true if the uninstall should proceed.
-     */
-    private suspend fun shouldAutoUninstall(container: StepRunner): Boolean {
-        container.log("Asking user to uninstall existing installation")
-        mainThread { context.showToast(R.string.installer_uninstall_new) }
-
-        return true
     }
 
     /**
@@ -172,11 +156,6 @@ open class InstallStep(private val options: PatchOptions) : Step(), KoinComponen
         /**
          * PackageInstaller status codes that indicate the install might succeed
          * after uninstalling the existing package first.
-         *
-         * - STATUS_FAILURE_CONFLICT (4): Version conflict or signature mismatch
-         * - STATUS_FAILURE_INVALID (3): e.g. INSTALL_FAILED_MISSING_SPLIT
-         * - STATUS_FAILURE (1): Generic failure that sometimes resolves after uninstall
-         * - STATUS_FAILURE_INCOMPATIBLE (6): Device/version incompatibility
          */
         private val RETRYABLE_STATUS_CODES: Set<Int> = setOf(
             PackageInstaller.STATUS_FAILURE_CONFLICT,
