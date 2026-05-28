@@ -1,25 +1,38 @@
 <p align="center">
-  <img src="assets/surge-logo.svg" width="128" alt="SurgeCord logo" />
+  <img width="150" alt="SurgeCord logo" src="assets/surge-logo.svg" />
 </p>
 
-# Surge Manager
+<h1 align="center">Surge Manager</h1>
 
-Surge Manager is the Android installer/patcher for **SurgeCord**. It downloads the required patching components, applies the SurgeCord/Xposed integration to Discord, signs the patched APK set, and installs it on-device.
+<p align="center">
+  Android installer and patcher for SurgeCord.
+</p>
 
-## Repositories
+<p align="center">
+  <a href="https://github.com/VenusIsJaded/SurgeManager/releases/latest">Download</a>
+  ·
+  <a href="https://github.com/VenusIsJaded/SurgeManager/issues">Issues</a>
+</p>
 
-- **Bundle:** [`VenusIsJaded/Surge`](https://github.com/VenusIsJaded/Surge)
-- **Xposed module:** [`VenusIsJaded/SurgeXposed`](https://github.com/VenusIsJaded/SurgeXposed)
-- **Version metadata:** [`VenusIsJaded/ControlRepo`](https://github.com/VenusIsJaded/ControlRepo)
+## What it does
 
-## Features
+Surge Manager builds and installs a SurgeCord-patched Discord client on Android.
 
-- Automatic Discord RNA APK download flow.
-- Local APK/APKM support.
-- SurgeXposed injection through LSPatch.
-- Custom package name, app name, debug flag, and icon options.
-- Install logs for troubleshooting.
-- Release workflow for APK publishing.
+It handles:
+
+- downloading supported Discord RNA APKs
+- selecting a local APK/APKM file
+- patching app name, package name, icons, and manifest values
+- downloading and embedding SurgeXposed
+- signing patched APKs
+- installing patched APKs through Android's PackageInstaller
+- keeping install logs for troubleshooting
+
+## Related repositories
+
+- [`Surge`](https://github.com/VenusIsJaded/Surge) — SurgeCord JavaScript bundle
+- [`SurgeXposed`](https://github.com/VenusIsJaded/SurgeXposed) — LSPatch/Xposed module
+- [`ControlRepo`](https://github.com/VenusIsJaded/ControlRepo) — version metadata
 
 ## Release signing
 
@@ -30,8 +43,14 @@ The release workflow supports these repository secrets:
 - `KEY_ALIAS`
 - `KEY_PASSWORD`
 
-If these are missing, the workflow generates a temporary fallback keystore so CI can still produce an APK. Use real signing secrets before publishing production builds.
+If signing secrets are not configured, CI generates a temporary fallback keystore so test builds can still complete. Use persistent signing secrets for builds you plan to keep installed across updates.
 
-## Logo
+## Development
 
-The SurgeCord logo is a cyan/purple surge bolt on a dark circular background. Source artwork is in `assets/surge-logo.svg`.
+```bash
+./gradlew assembleDebug
+```
+
+## Disclaimer
+
+Surge Manager is an independent project and is not affiliated with Discord Inc.
