@@ -57,60 +57,44 @@ class InjectSurgeXposedStep : Step() {
     }
 
     override suspend fun execute(container: StepRunner) {
-        val copyStep = container.getStep<CopyDependenciesStep>()
-        val allApks = copyStep.patchedApks
+        val apks = container.getStep<CopyDependenciesStep>().patchedApks
         val xposed = container.getStep<DownloadSurgeXposedStep>().targetFile
 
         container.log("Adding SurgeXposed module with LSPatch")
         container.log("SurgeXposed path = ${xposed.absolutePath}")
 
-        // IMPORTANT: Only pass the BASE APK to LSPatch, not split APKs.
-        //
-        // Split APKs (lang, lib, res, config.*) don't need LSPatch processing and
-        // attempting to patch them causes NoClassDefFoundError in LSPAppComponentFactoryStub
-        // at runtime on many devices. The stub in each split APK depends on LSPosed framework
-        // classes that only exist in the base APK's classloader context. When Android loads
-        // a split APK, its classloader doesn't have access to those classes, causing the crash.
-        //
-        // The SurgeXposed module is embedded in the base APK, and all Xposed hooks operate
-        // through the base APK's process. Split APKs are just resources/native libs and
-        // don't need LSPatch processing.
-        val baseApk = copyStep.patchedApk
-        val splitApks = allApks.filter { it != baseApk }
-
-        container.log("Processing base APK only: ${baseApk.name}")
-        if (splitApks.isNotEmpty()) {
-            container.log("Skipping ${splitApks.size} split APK(s): ${splitApks.joinToString { it.name }}")
-        }
-
         // Create temporary folder in working directory
-        val tempDir = baseApk.parentFile!!.resolve("lspatched")
+        val tempDir = apks.first().parentFile!!.resolve("lspatched")
 
-        // Only patch the base APK through LSPatch
         patch(
             container,
             outputDir = tempDir,
-            apkPaths = listOf(baseApk.absolutePath),
+            apkPaths = apks.map { it.absolutePath },
             embeddedModules = listOf(xposed.absolutePath)
         )
 
-        // Replace only the base APK with the patched version.
-        // Split APKs are left untouched (already aligned and signed).
-        val baseName = baseApk.nameWithoutExtension
-        // https://github.com/JingMatrix/LSPatch/blob/b98eaf805018c4cc258ded12efe89212a4855e6a/patch/src/main/java/org/lsposed/patch/LSPatch.java#L159-L163
-        // String.format(
-        //     Locale.getDefault(), "%s-%d-lspatched.apk",
-        //     FilenameUtils.getBaseName(apkFileName),
-        //     LSPConfig.instance.VERSION_CODE)
-        // )
-        val patchedApkName = "${baseName}-${LSPConfig.instance.VERSION_CODE}-lspatched.apk"
-        val patchedApk = File(tempDir, patchedApkName)
+        // Process each APK and replace with patched version. Do not rewrite the
+        // LSPatch output here: the official pipeline relies on LSPatch producing
+        // the final signed APK for auto-installs, and post-LSPatch zip surgery can
+        // produce launch-crashing clients.
+        apks.forEach { originalApk ->
+            val baseName = originalApk.nameWithoutExtension
+            // https://github.com/JingMatrix/LSPatch/blob/b98eaf805018c4cc258ded12efe89212a4855e6a/patch/src/main/java/org/lsposed/patch/LSPatch.java#L159-L163
+            // String.format(
+            //     Locale.getDefault(), "%s-%d-lspatched.apk",
+            //     FilenameUtils.getBaseName(apkFileName),
+            //     LSPConfig.instance.VERSION_CODE)
+            // )
+            val patchedApkName = "${baseName}-${LSPConfig.instance.VERSION_CODE}-lspatched.apk"
+            val patchedApk = File(tempDir, patchedApkName)
 
-        if (patchedApk.exists()) {
-            patchedApk.copyTo(baseApk, overwrite = true)
-            container.log("Replaced ${baseApk.name} with ${patchedApk.name}")
-        } else {
-            throw Error("Failed to find patched base APK at: ${patchedApk.absolutePath}")
+            if (patchedApk.exists()) {
+                patchedApk.copyTo(originalApk, overwrite = true)
+                container.log("Replaced ${originalApk.name} with ${patchedApk.name}")
+            } else {
+                container.log("Warning: Could not find patched APK for ${originalApk.name}")
+                container.log("Expected patched APK at: ${patchedApk.absolutePath}")
+            }
         }
 
         tempDir.deleteRecursively()
