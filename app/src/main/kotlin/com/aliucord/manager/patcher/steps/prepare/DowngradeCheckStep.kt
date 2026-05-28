@@ -2,8 +2,6 @@ package com.aliucord.manager.patcher.steps.prepare
 
 import android.content.Context
 import android.content.pm.PackageManager.NameNotFoundException
-import com.aliucord.manager.manager.InstallerManager
-import com.aliucord.manager.installers.InstallerResult
 import com.aliucord.manager.patcher.StepRunner
 import com.aliucord.manager.patcher.steps.StepGroup
 import com.aliucord.manager.patcher.steps.base.Step
@@ -16,15 +14,17 @@ import org.koin.core.component.inject
 
 /**
  * Pre-install validation:
- *  - Detects split-APK installs that can't be directly overwritten by a monolithic APK
- *    and proactively uninstalls (the PackageManager provides no usable error for this case).
- *  - Warns about downgrades but no longer forces an uninstall.
+ *  - Logs a warning about downgrades but does NOT force an uninstall.
  *    If the install fails due to a version conflict, [InstallStep] will handle
  *    the uninstall-and-retry automatically.
+ *
+ * Note: The split-APK check was removed because SurgeManager always installs
+ * split APKs (base + lang + resources + lib). Updating split-over-split works
+ * fine — Android only errors on split→monolithic or monolithic→split mismatches,
+ * neither of which applies here.
  */
 class DowngradeCheckStep(private val options: PatchOptions) : Step(), KoinComponent {
     private val context: Context by inject()
-    private val installers: InstallerManager by inject()
 
     override val group = StepGroup.Prepare
     override val localizedName = R.string.patch_step_downgrade_check
@@ -42,25 +42,6 @@ class DowngradeCheckStep(private val options: PatchOptions) : Step(), KoinCompon
         @Suppress("DEPRECATION")
         val currentVersion = packageInfo.versionCode
         container.log("Version of installed app: $currentVersion")
-
-        // Detect split-APK install: if the package has split APKs, installing a monolithic APK
-        // over it will always fail with INSTALL_FAILED_MISSING_SPLIT.
-        // This is the ONLY case where we must proactively uninstall, because the PackageManager
-        // error for this is unusable (it returns a generic STATUS_FAILURE with no useful message).
-        val isSplitInstall = !packageInfo.applicationInfo?.splitSourceDirs.isNullOrEmpty()
-        if (isSplitInstall) {
-            container.log("Existing install is a split-APK set — must uninstall before installing a monolithic APK")
-            mainThread { context.showToast(R.string.installer_uninstall_new) }
-
-            when (val result = installers.getActiveInstaller().waitUninstall(options.packageName)) {
-                is InstallerResult.Error -> throw Error("Failed to uninstall split-APK install: ${result.getDebugReason()}")
-                is InstallerResult.Cancelled -> throw Error("Existing split-APK install must be removed before continuing")
-                else -> {
-                    container.log("Successfully uninstalled existing split-APK install")
-                    return
-                }
-            }
-        }
 
         // Version comparison: just log a warning if it looks like a downgrade.
         // The actual install will attempt, and if it fails due to version conflict,
