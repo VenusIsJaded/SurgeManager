@@ -28,12 +28,9 @@ class SurgePatchRunner(options: PatchOptions) : StepRunner() {
             PatchSurgeManifestStep(options),
             SaveMetadataStep(options),
 
-            // Keep the official Surge Manager pipeline order. Local APK support should
-            // only change where the APKs come from; LSPatch remains the final
-            // APK-producing step to avoid launch crashes.
+            InjectSurgeXposedStep(),
             AlignmentStep(),
             SigningStep(),
-            InjectSurgeXposedStep(),
 
             InstallStep(options),
             CleanupStep(),
@@ -50,18 +47,15 @@ class SurgePatchRunner(options: PatchOptions) : StepRunner() {
             DownloadDiscordRNALibStep(),
             DownloadSurgeXposedStep(),
 
-            // Auto-downloads intentionally use the same CopyDependenciesStep() call
-            // and install order as official Surge Manager. Local APK support is isolated
-            // to the branch above so the known-good auto path is not changed.
             CopyDependenciesStep(),
 
             PatchIconsStep(options),
             PatchSurgeManifestStep(options),
             SaveMetadataStep(options),
 
+            InjectSurgeXposedStep(),
             AlignmentStep(),
             SigningStep(),
-            InjectSurgeXposedStep(),
 
             InstallStep(options),
             CleanupStep(),
