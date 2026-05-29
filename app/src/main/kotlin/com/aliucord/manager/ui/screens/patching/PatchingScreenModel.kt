@@ -72,7 +72,7 @@ class PatchingScreenModel(
         }
     }
 
-    val isLocalApk = !options.localApkPath.isNullOrBlank()
+    
 
     init {
         install()

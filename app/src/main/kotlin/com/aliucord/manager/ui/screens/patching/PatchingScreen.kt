@@ -73,7 +73,7 @@ class PatchingScreen(private val data: PatchOptions) : Screen, Parcelable {
 
         // Version info for display
         val discordVersion = remember { model.discordVersionString }
-        val isLocalApk = remember { model.isLocalApk }
+        
 
         // Only show exit warning if currently working
         val onTryExit: () -> Unit = remember {
@@ -125,7 +125,7 @@ class PatchingScreen(private val data: PatchOptions) : Screen, Parcelable {
         }
 
         Scaffold(
-            topBar = { PatchingAppBar(onTryExit, discordVersion = discordVersion, isLocalApk = isLocalApk) },
+            topBar = { PatchingAppBar(onTryExit, discordVersion = discordVersion, ) },
         ) { paddingValues ->
             Column(
                 verticalArrangement = Arrangement.spacedBy(VERTICAL_PADDING),
@@ -147,7 +147,7 @@ class PatchingScreen(private val data: PatchOptions) : Screen, Parcelable {
 
                 // Version info card when patching is in progress
                 AnimatedVisibility(
-                    visible = state is PatchingScreenState.Working && (discordVersion != null || isLocalApk),
+                    visible = state is PatchingScreenState.Working && (discordVersion != null ),
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -161,24 +161,6 @@ class PatchingScreen(private val data: PatchOptions) : Screen, Parcelable {
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            if (isLocalApk) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_code),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.patcher_source_local),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
                             }
                             
                             if (discordVersion != null) {
@@ -186,7 +168,7 @@ class PatchingScreen(private val data: PatchOptions) : Screen, Parcelable {
                                     text = discordVersion,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = if (isLocalApk) TextAlign.Start else TextAlign.Center,
+                                    textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
