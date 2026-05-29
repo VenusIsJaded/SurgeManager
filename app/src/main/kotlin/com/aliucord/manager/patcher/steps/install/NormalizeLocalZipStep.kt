@@ -44,31 +44,25 @@ class NormalizeLocalZipStep : Step() {
                                 val alignment = if (isResourcesArsc) RESOURCE_ALIGNMENT else null
                                 val method = if (forceUncompressed) ZipEntry.STORED else entry.method
 
-                                val fallbackStoredBytes = if (method == ZipEntry.STORED && (entry.size < 0 || entry.crc < 0 || entry.method != ZipEntry.STORED)) {
-                                    zipFile.getInputStream(entry).use { it.readBytes() }
-                                } else {
-                                    null
-                                }
+                                // We MUST always buffer the bytes if we are doing ANY metadata stripping
+                                // because ZipOutputStream requires perfectly valid size/crc metadata for
+                                // STORED entries, and for DEFLATED entries without a Data Descriptor.
+                                val bytes = zipFile.getInputStream(entry).use { it.readBytes() }
                                 
-                                val fallbackStoredCrc = fallbackStoredBytes?.let { bytes ->
-                                    CRC32().also { it.update(bytes) }.value
-                                }
+                                val crc32 = CRC32().also { it.update(bytes) }.value
+                                val sizeBytes = bytes.size.toLong()
 
-                                // ZipOutputStream automatically recalculates the CRC and Size 
-                                // as it streams the bytes in if we don't declare it. By not explicitly
-                                // declaring the size on DEFLATED entries, it implicitly writes the 
-                                // proper Data Descriptor record at the end of the entry stream, which
-                                // makes apksig perfectly happy.
+                                // Creating a ZipEntry strictly from a String prevents it from copying
+                                // the original ZipEntry's corrupt flags (like the 0x08 Data Descriptor bit).
+                                // This guarantees apksig sees a perfectly clean Local File Header.
                                 val newEntry = ZipEntry(entry.name).apply {
                                     this.method = method
-
+                                    this.size = sizeBytes
+                                    this.crc = crc32
                                     if (method == ZipEntry.STORED) {
-                                        val storedSize = fallbackStoredBytes?.size?.toLong() ?: entry.size
-                                        size = storedSize
-                                        compressedSize = storedSize
-                                        crc = fallbackStoredCrc ?: entry.crc
+                                        this.compressedSize = sizeBytes
                                     }
-
+                                    
                                     if (entry.comment != null) comment = entry.comment
                                     
                                     if (alignment != null) {
@@ -81,11 +75,7 @@ class NormalizeLocalZipStep : Step() {
                                 }
 
                                 zipOut.putNextEntry(newEntry)
-                                if (fallbackStoredBytes != null) {
-                                    zipOut.write(fallbackStoredBytes)
-                                } else {
-                                    zipFile.getInputStream(entry).use { input -> input.copyTo(zipOut) }
-                                }
+                                zipOut.write(bytes)
                                 zipOut.closeEntry()
                             }
                         }
