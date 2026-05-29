@@ -46,9 +46,6 @@ class NormalizeLocalZipStep : Step() {
 
                                 val fallbackStoredBytes = if (method == ZipEntry.STORED && (entry.size < 0 || entry.crc < 0 || entry.method != ZipEntry.STORED)) {
                                     zipFile.getInputStream(entry).use { it.readBytes() }
-                                } else if (entry.size < 0 || entry.crc < 0) {
-                                    // Local APKs sometimes have Data Descriptors for deflated entries too
-                                    zipFile.getInputStream(entry).use { it.readBytes() }
                                 } else {
                                     null
                                 }
@@ -70,21 +67,17 @@ class NormalizeLocalZipStep : Step() {
                                         size = storedSize
                                         compressedSize = storedSize
                                         crc = fallbackStoredCrc ?: entry.crc
-                                    } else {
-                                        // ZipOutputStream strictly enforces size/crc correctness on the Local File Header.
-                                        // For DEFLATED entries, if the original used a Data Descriptor (size = -1),
-                                        // providing the size upfront removes the need for the Data Descriptor.
-                                        if (fallbackStoredBytes != null) {
-                                            size = fallbackStoredBytes.size.toLong()
-                                            crc = fallbackStoredCrc ?: entry.crc
-                                        }
                                     }
 
                                     if (entry.comment != null) comment = entry.comment
                                     
-                                    // Strip out Data Descriptor flag (0x08) that apksig chokes on
-                                    // and prevent creating any custom extra padding because
-                                    // apksig's setAlignFileSize(true) will perfectly align it for us.
+                                    if (alignment != null) {
+                                        extra = createZipAlignExtra(
+                                            localHeaderOffset = countingOut.bytesWritten,
+                                            entryName = entry.name,
+                                            alignment = alignment,
+                                        )
+                                    }
                                 }
 
                                 zipOut.putNextEntry(newEntry)
