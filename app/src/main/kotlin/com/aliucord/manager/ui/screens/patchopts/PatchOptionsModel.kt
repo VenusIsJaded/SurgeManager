@@ -42,7 +42,7 @@ class PatchOptionsModel(
         }
     }
 
-    
+    val isLocalApk = localApkPath != null
 
     // ---------- Package name state ----------
     var packageName by mutableStateOf(prefilledOptions.packageName)
@@ -95,7 +95,7 @@ class PatchOptionsModel(
         // guaranteed to match SurgeCord's six-digit remote Discord version format.
         // The manual version field only needs strict validation when it will actually
         // be used as a developer override for remote downloads.
-        return prefs.devMode && value.isNotBlank() && !DiscordVersion.isValid(value)
+        return !isLocalApk && prefs.devMode && value.isNotBlank() && !DiscordVersion.isValid(value)
     }
 
     // ---------- Other ----------

@@ -80,6 +80,7 @@ class PatchOptionsScreen(
         PatchOptionsScreenContent(
             isUpdate = prefilledOptions != null,
             isDevMode = model.isDevMode,
+            isLocalApk = model.isLocalApk,
             localApkVersionInfo = model.localApkVersionInfo,
 
             debuggable = model.debuggable,
@@ -128,6 +129,7 @@ class PatchOptionsScreen(
 fun PatchOptionsScreenContent(
     isUpdate: Boolean,
     isDevMode: Boolean,
+    isLocalApk: Boolean,
     localApkVersionInfo: String?,
 
     debuggable: Boolean,
@@ -165,6 +167,39 @@ fun PatchOptionsScreenContent(
                 .padding(horizontal = 20.dp, vertical = 10.dp)
         ) {
             // Version info card - shows when using a local APK
+            AnimatedVisibility(
+                visible = isLocalApk,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_code),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
 
                         Column(
@@ -293,6 +328,20 @@ fun PatchOptionsScreenContent(
                 )
             }
 
+            AnimatedVisibility(
+                visible = isDevMode, 
+                label = "Custom version code option visibility"
+            ) {
+                TextPatchOption(
+                    name = stringResource(R.string.patchopts_vercode_title),
+                    description = stringResource(R.string.patchopts_vercode_desc),
+                    value = customVersionCode,
+                    valueIsError = customVersionCodeIsError,
+                    valueIsDefault = customVersionCode == PatchOptions.Default.customVersionCode,
+                    onValueChange = setCustomVersionCode,
+                    onValueReset = {
+                        setCustomVersionCode(PatchOptions.Default.customVersionCode)
+                    }
                 ) {
                     VersionDisplay(
                         version = DiscordVersion.parseFromString(customVersionCode),

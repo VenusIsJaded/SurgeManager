@@ -8,28 +8,58 @@ import com.aliucord.manager.ui.screens.patchopts.PatchOptions
 import kotlinx.collections.immutable.persistentListOf
 
 class SurgePatchRunner(options: PatchOptions) : StepRunner() {
-    override val steps = persistentListOf(
-        FetchDiscordRNAStep(options),
-        DowngradeCheckStep(options),
-        RestoreDownloadsStep(),
+    private val isLocalApk = !options.localApkPath.isNullOrBlank()
 
-        DownloadDiscordRNABaseStep(),
-        DownloadDiscordRNALangStep(),
-        DownloadDiscordRNAResourcesStep(),
-        DownloadDiscordRNALibStep(),
-        DownloadSurgeXposedStep(),
+    override val steps = if (isLocalApk) {
+        persistentListOf(
+            UseLocalApkStep(options),
+            DowngradeCheckStep(options),
+            SkipRestoreDownloadsStep(),
 
-        CopyDependenciesStep(),
+            SkipDownloadStep("base APK (using local file)"),
+            SkipDownloadStep("lang APK (using local file)"),
+            SkipDownloadStep("resources APK (using local file)"),
+            SkipDownloadStep("libs APK (using local file)"),
+            DownloadSurgeXposedStep(),
 
-        PatchIconsStep(options),
-        PatchSurgeManifestStep(options),
-        SaveMetadataStep(options),
+            CopyDependenciesStep(options),
 
-        AlignmentStep(),
-        SigningStep(),
-        InjectSurgeXposedStep(),
+            NormalizeLocalZipStep(),
 
-        InstallStep(options),
-        CleanupStep(),
-    )
+            PatchIconsStep(options),
+            PatchSurgeManifestStep(options),
+            SaveMetadataStep(options),
+
+            SigningStep(),
+            InjectSurgeXposedStep(),
+
+            InstallStep(options),
+            CleanupStep(),
+        )
+    } else {
+        persistentListOf(
+            FetchDiscordRNAStep(options),
+            DowngradeCheckStep(options),
+            RestoreDownloadsStep(),
+
+            DownloadDiscordRNABaseStep(),
+            DownloadDiscordRNALangStep(),
+            DownloadDiscordRNAResourcesStep(),
+            DownloadDiscordRNALibStep(),
+            DownloadSurgeXposedStep(),
+
+            CopyDependenciesStep(options),
+
+            PatchIconsStep(options),
+            PatchSurgeManifestStep(options),
+            SaveMetadataStep(options),
+
+            AlignmentStep(),
+            SigningStep(),
+            InjectSurgeXposedStep(),
+
+            InstallStep(options),
+            CleanupStep(),
+        )
+    }
 }
