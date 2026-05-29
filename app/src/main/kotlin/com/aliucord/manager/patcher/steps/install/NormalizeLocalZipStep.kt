@@ -57,9 +57,10 @@ class NormalizeLocalZipStep : Step() {
                                 // This guarantees apksig sees a perfectly clean Local File Header.
                                 val newEntry = ZipEntry(entry.name).apply {
                                     this.method = method
-                                    this.size = sizeBytes
-                                    this.crc = crc32
+                                    
                                     if (method == ZipEntry.STORED) {
+                                        this.size = sizeBytes
+                                        this.crc = crc32
                                         this.compressedSize = sizeBytes
                                     } else {
                                         // For DEFLATED entries, if we explicitly set the size or crc, 
@@ -67,12 +68,10 @@ class NormalizeLocalZipStep : Step() {
                                         // File Header *without* a Data Descriptor. However, if the 
                                         // compressedSize is unknown beforehand, it forcefully toggles 
                                         // the 0x08 flag anyway!
-                                        // By resetting the size and CRC to -1, we explicitly tell 
+                                        // By leaving the size and CRC unset (-1 default), we explicitly tell 
                                         // ZipOutputStream to stream the compression and generate the 
                                         // Data Descriptor properly at the end of the entry, ensuring
                                         // apksig's parser stays perfectly synced.
-                                        this.size = -1L
-                                        this.crc = -1L
                                     }
                                     
                                     if (entry.comment != null) comment = entry.comment
