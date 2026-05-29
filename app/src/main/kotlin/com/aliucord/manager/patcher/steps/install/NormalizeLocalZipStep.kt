@@ -43,37 +43,9 @@ class NormalizeLocalZipStep : Step() {
                                 
                                 val alignment = if (isResourcesArsc) RESOURCE_ALIGNMENT else null
                                 val method = if (forceUncompressed) ZipEntry.STORED else entry.method
-
-                                // We MUST always buffer the bytes if we are doing ANY metadata stripping
-                                // because ZipOutputStream requires perfectly valid size/crc metadata for
-                                // STORED entries, and for DEFLATED entries without a Data Descriptor.
-                                val bytes = zipFile.getInputStream(entry).use { it.readBytes() }
                                 
-                                val crc32 = CRC32().also { it.update(bytes) }.value
-                                val sizeBytes = bytes.size.toLong()
-
-                                // Creating a ZipEntry strictly from a String prevents it from copying
-                                // the original ZipEntry's corrupt flags (like the 0x08 Data Descriptor bit).
-                                // This guarantees apksig sees a perfectly clean Local File Header.
                                 val newEntry = ZipEntry(entry.name).apply {
                                     this.method = method
-                                    
-                                    if (method == ZipEntry.STORED) {
-                                        this.size = sizeBytes
-                                        this.crc = crc32
-                                        this.compressedSize = sizeBytes
-                                    } else {
-                                        // For DEFLATED entries, if we explicitly set the size or crc, 
-                                        // ZipOutputStream assumes we want to write them into the Local 
-                                        // File Header *without* a Data Descriptor. However, if the 
-                                        // compressedSize is unknown beforehand, it forcefully toggles 
-                                        // the 0x08 flag anyway!
-                                        // By leaving the size and CRC unset (-1 default), we explicitly tell 
-                                        // ZipOutputStream to stream the compression and generate the 
-                                        // Data Descriptor properly at the end of the entry, ensuring
-                                        // apksig's parser stays perfectly synced.
-                                    }
-                                    
                                     if (entry.comment != null) comment = entry.comment
                                     
                                     if (alignment != null) {
@@ -85,9 +57,45 @@ class NormalizeLocalZipStep : Step() {
                                     }
                                 }
 
-                                zipOut.putNextEntry(newEntry)
-                                zipOut.write(bytes)
-                                zipOut.closeEntry()
+                                // If the original entry is stored, we can stream directly into the new entry
+                                // without recalculating CRCs or keeping byte arrays in memory, as long as we 
+                                // set the exact metadata beforehand.
+                                if (method == ZipEntry.STORED) {
+                                    // We ALWAYS buffer STORED entries that were previously DEFLATED,
+                                    // or entries with Data Descriptors. ZipOutputStream refuses to write 
+                                    // STORED files without knowing their exact uncompressed size and CRC beforehand.
+                                    if (entry.size < 0 || entry.crc < 0 || entry.method != ZipEntry.STORED) {
+                                        val bytes = zipFile.getInputStream(entry).use { it.readBytes() }
+                                        newEntry.size = bytes.size.toLong()
+                                        newEntry.compressedSize = bytes.size.toLong()
+                                        newEntry.crc = CRC32().also { it.update(bytes) }.value
+                                        
+                                        zipOut.putNextEntry(newEntry)
+                                        zipOut.write(bytes)
+                                        zipOut.closeEntry()
+                                    } else {
+                                        newEntry.size = entry.size
+                                        newEntry.compressedSize = entry.compressedSize
+                                        newEntry.crc = entry.crc
+                                        
+                                        zipOut.putNextEntry(newEntry)
+                                        zipFile.getInputStream(entry).use { input -> input.copyTo(zipOut) }
+                                        zipOut.closeEntry()
+                                    }
+                                } else {
+                                    // apksig has a massive bug where if it encounters a DEFLATED file in an APK
+                                    // without the 0x08 flag in the local file header, it throws an exception.
+                                    // However, Java's ZipOutputStream refuses to write the 0x08 flag if we don't 
+                                    // explicitly set the size to -1! It assumes we are providing it immediately.
+                                    
+                                    newEntry.size = -1
+                                    newEntry.compressedSize = -1
+                                    newEntry.crc = -1
+                                    
+                                    zipOut.putNextEntry(newEntry)
+                                    zipFile.getInputStream(entry).use { input -> input.copyTo(zipOut) }
+                                    zipOut.closeEntry()
+                                }
                             }
                         }
                     }
