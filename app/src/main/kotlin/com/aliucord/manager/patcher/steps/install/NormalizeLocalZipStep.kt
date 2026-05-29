@@ -76,8 +76,13 @@ class NormalizeLocalZipStep : Step() {
                                     
                                     if (entry.comment != null) comment = entry.comment
                                     
-                                    // Strip out manual alignment padding because apksig's 
-                                    // setAlignFileSize(true) will perfectly align it for us.
+                                    if (alignment != null) {
+                                        extra = createZipAlignExtra(
+                                            localHeaderOffset = countingOut.bytesWritten,
+                                            entryName = entry.name,
+                                            alignment = alignment,
+                                        )
+                                    }
                                 }
 
                                 zipOut.putNextEntry(newEntry)
