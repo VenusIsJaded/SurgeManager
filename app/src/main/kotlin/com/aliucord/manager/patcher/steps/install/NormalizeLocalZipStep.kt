@@ -61,17 +61,24 @@ class NormalizeLocalZipStep : Step() {
                                     this.crc = crc32
                                     if (method == ZipEntry.STORED) {
                                         this.compressedSize = sizeBytes
+                                    } else {
+                                        // For DEFLATED entries, if we explicitly set the size or crc, 
+                                        // ZipOutputStream assumes we want to write them into the Local 
+                                        // File Header *without* a Data Descriptor. However, if the 
+                                        // compressedSize is unknown beforehand, it forcefully toggles 
+                                        // the 0x08 flag anyway!
+                                        // By resetting the size and CRC to -1, we explicitly tell 
+                                        // ZipOutputStream to stream the compression and generate the 
+                                        // Data Descriptor properly at the end of the entry, ensuring
+                                        // apksig's parser stays perfectly synced.
+                                        this.size = -1L
+                                        this.crc = -1L
                                     }
                                     
                                     if (entry.comment != null) comment = entry.comment
                                     
-                                    if (alignment != null) {
-                                        extra = createZipAlignExtra(
-                                            localHeaderOffset = countingOut.bytesWritten,
-                                            entryName = entry.name,
-                                            alignment = alignment,
-                                        )
-                                    }
+                                    // Strip out manual alignment padding because apksig's 
+                                    // setAlignFileSize(true) will perfectly align it for us.
                                 }
 
                                 zipOut.putNextEntry(newEntry)

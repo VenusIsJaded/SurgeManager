@@ -93,10 +93,8 @@ object Signer : KoinComponent {
             .setV1SigningEnabled(false)
             .setV2SigningEnabled(true)
             .setV3SigningEnabled(true)
-            // Only generate v2/v3 signatures. We removed setAlignFileSize(true)
-            // because apksig's built-in aligner strips Data Descriptors out of the
-            // Central Directory but leaves the flag in the Local File Header, causing
-            // the exact ZipFormatException crash we're trying to avoid!
+            // Align all entries (equivalent to zipalign -f 4)
+            .setAlignFileSize(true)
             .setInputApk(apkFile)
             .setOutputApk(tmpApk)
             .build()
